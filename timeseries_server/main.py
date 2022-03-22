@@ -157,7 +157,71 @@ def run_detectors():
     # periodically action dead timers by looking in time series for an event key pair that haven't arrived in detector dead interval
 
     # detector needs a lookback time, a threshold for lower than or more than, and a percent of datapoints, and a dead detector time
-    ...
+    rows = db.execute("select * from timeseries_log").fetchall()
+
+    def more_than_expected(startIdx, endIdx, inReal, optInTimePeriod):
+        def _lookback(optInTimePeriod):
+            return optInTimePeriod - 1
+
+        outReal = [0.0] * len(inReal)
+
+        highest, tmp = 0.0, 0.0
+        outIdx, nbInitialElementNeeded = 0, 0
+        trailingIdx, today, i, highestIdx = 0, 0, 0, 0
+
+        # identify the minimum number of slots needed
+        # to identify at least one output over the specified
+        # period.
+        nbInitialElementNeeded = _lookback(optInTimePeriod)
+
+        # move up the start index if there is not
+        # enough initial data.
+        if startIdx < nbInitialElementNeeded:
+            startIdx = nbInitialElementNeeded
+
+        # make sure there is still something to evaluate
+        if startIdx > endIdx:
+            outBegIdx = 0
+            outNBElement = 0
+            return outBegIdx, outNBElement, outReal
+
+        # proceed with the calculation for the requested range.
+        # note that this algorithm allows the input and
+        # output to be the same buffer.
+        outIdx = 0
+        today = startIdx
+        trailingIdx = startIdx - nbInitialElementNeeded
+        highestIdx = -1
+        highest = 0.0
+
+        while today <= endIdx:
+            tmp = inReal[today]
+            if highestIdx < trailingIdx:
+                highestIdx = trailingIdx
+                highest = inReal[highestIdx]
+                i = highestIdx
+                i += 1
+                while i <= today:
+                    tmp = inReal[i]
+                    if tmp > highest:
+                        highestIdx = i
+                        highest = tmp
+                    i += 1
+            elif tmp >= highest:
+                highestIdx = today
+                highest = tmp
+
+            outReal[outIdx] = highest
+            outIdx += 1
+            trailingIdx += 1
+            today += 1
+
+        # keep the outBegIdx relative to the
+        # caller input before returning.
+        outBegIdx = startIdx
+        outNBElement = outIdx
+
+        return outBegIdx, outNBElement, outReal
 
 
 def main(argv):
