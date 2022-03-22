@@ -18,9 +18,9 @@ COLLECTION_SERVER_SYMMETRICAL_KEY = os.environ.get(
 COLLECTION_SERVER_PORT = int(os.environ.get("COLLECTION_SERVER_PORT", 8080))
 
 DATABASE_SCHEMA = [
-    "CREATE TABLE IF NOT EXISTS timeseries_log (id INTEGER PRIMARY KEY, created_at, entity, key, value REAL)",  # value is the numerical thing tested
-    "CREATE TABLE IF NOT EXISTS events_log (id INTEGER PRIMARY KEY, created_at, detector_name, value INTEGER)",  # value is on or off
-    "CREATE TABLE IF NOT EXISTS recent_alerts (id, created_at, updated_at, value INTEGER)",  # value is active or not
+    "CREATE TABLE IF NOT EXISTS timeseries_log (id INTEGER PRIMARY KEY, created_at, time, entity, key, value REAL)",  # value is the numerical thing tested
+    "CREATE TABLE IF NOT EXISTS events_log (id INTEGER PRIMARY KEY, created_at, time, detector_name, value INTEGER)",  # value is on or off
+    "CREATE TABLE IF NOT EXISTS recent_alerts (id, created_at, updated_at, time, value INTEGER)",  # value is active or not
 ]
 
 
@@ -43,7 +43,7 @@ def run_collection_server():
             logging.info("timeseries input of length %d", len(data))
             created_at = int(time.time())
             db.executemany(
-                "insert into timeseries (created_at, time, entity, key, value) values (%d, ?,?,?,?)"
+                "insert into timeseries_log (created_at, time, entity, key, value) values (%d, ?,?,?,?)"
                 % created_at,
                 zip(_times, _entities, _keys, _values),
             )
