@@ -16,6 +16,7 @@ COLLECTION_SERVER_SYMMETRICAL_KEY = os.environ.get(
     "COLLECTION_SERVER_SYMMETRICAL_KEY", ""
 )
 COLLECTION_SERVER_PORT = int(os.environ.get("COLLECTION_SERVER_PORT", 8080))
+COLLECTION_SERVER_UI_PORT = int(os.environ.get("COLLECTION_SERVER_UI_PORT", 8081))
 
 DATABASE_SCHEMA = [
     "CREATE TABLE IF NOT EXISTS timeseries_log (id INTEGER PRIMARY KEY, created_at, time, entity, key, value REAL)",  # value is the numerical thing tested
@@ -59,7 +60,93 @@ def run_collection_server():
 
 def run_ui_server():
     # needs a landing page that accepts queries in sql and produces a table from the data
-    ...
+    @bottle.get("/")
+    def root():
+        return """\
+<h1>menu</h1>
+ <ul>
+  <li><a href="/timeseries_log">timeseries log</li>
+  <li><a href="/events_log">events log</li>
+  <li><a href="/recent_alerts">recent alerts</li>
+ </ul> 
+"""
+
+    @bottle.get("/timeseries_log")
+    def timeseries_log():
+        rows = db.execute("select * from timeseries_log").fetchall()
+        cols = rows[0] if rows else []
+        return (
+            """\
+<h1>timeseries log</h1>
+ <ul>
+  <li><a href="/">back</li>
+ </ul> 
+<br>
+<table border="1">
+<tr>"""
+            + "".join(f"<th>{x}</th>" for x in cols)
+            + """</tr>
+"""
+            + "".join(
+                "<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>"
+                for row in rows
+            )
+            + """
+</table>
+"""
+        )
+
+    @bottle.get("/events_log")
+    def events_log():
+        rows = db.execute("select * from events_log").fetchall()
+        cols = rows[0] if rows else []
+        return (
+            """\
+<h1>events log</h1>
+ <ul>
+  <li><a href="/">back</li>
+ </ul> 
+<br>
+<table border="1">
+<tr>"""
+            + "".join(f"<th>{x}</th>" for x in cols)
+            + """</tr>
+"""
+            + "".join(
+                "<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>"
+                for row in rows
+            )
+            + """
+</table>
+"""
+        )
+
+    @bottle.get("/recent_alerts")
+    def recent_alerts():
+        rows = db.execute("select * from recent_alerts").fetchall()
+        cols = rows[0] if rows else []
+        return (
+            """\
+<h1>recent alerts</h1>
+ <ul>
+  <li><a href="/">back</li>
+ </ul> 
+<br>
+<table border="1">
+<tr>"""
+            + "".join(f"<th>{x}</th>" for x in cols)
+            + """</tr>
+"""
+            + "".join(
+                "<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>"
+                for row in rows
+            )
+            + """
+</table>
+"""
+        )
+
+    bottle.run(host="0.0.0.0", port=COLLECTION_SERVER_UI_PORT)
 
 
 def run_detectors():
