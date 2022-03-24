@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 import os
@@ -6,6 +7,7 @@ import sys
 import time
 
 import bottle
+import dateparser
 
 logging.basicConfig(level="DEBUG")
 
@@ -65,9 +67,9 @@ def run_ui_server():
         return """\
 <h1>menu</h1>
  <ul>
-  <li><a href="/timeseries_log">timeseries log</li>
-  <li><a href="/events_log">events log</li>
-  <li><a href="/recent_alerts">recent alerts</li>
+  <li><a href="/timeseries_log">timeseries log</a></li>
+  <li><a href="/events_log">events log</a></li>
+  <li><a href="/recent_alerts">recent alerts</a></li>
  </ul> 
 """
 
@@ -79,7 +81,7 @@ def run_ui_server():
             """\
 <h1>timeseries log</h1>
  <ul>
-  <li><a href="/">back</li>
+  <li><a href="/">back</a></li>
  </ul> 
 <br>
 <table border="1">
@@ -104,7 +106,7 @@ def run_ui_server():
             """\
 <h1>events log</h1>
  <ul>
-  <li><a href="/">back</li>
+  <li><a href="/">back</a></li>
  </ul> 
 <br>
 <table border="1">
@@ -129,7 +131,7 @@ def run_ui_server():
             """\
 <h1>recent alerts</h1>
  <ul>
-  <li><a href="/">back</li>
+  <li><a href="/">back</a></li>
  </ul> 
 <br>
 <table border="1">
@@ -150,78 +152,56 @@ def run_ui_server():
 
 
 def run_detectors():
-    # each detector holds an array of data length of lookback with solid intervals
-    # data should be normalized into those slots. at start the data for each detector is taken and each entity/key for the lookback and normalized in ram
-
-    # periodically need to remove recent alerts not fired in a while by global 30 days
     # periodically action dead timers by looking in time series for an event key pair that haven't arrived in detector dead interval
 
     # detector needs a lookback time, a threshold for lower than or more than, and a percent of datapoints, and a dead detector time
     rows = db.execute("select * from timeseries_log").fetchall()
 
-    def more_than_expected(startIdx, endIdx, inReal, optInTimePeriod):
-        def _lookback(optInTimePeriod):
-            return optInTimePeriod - 1
+    # configuration example: entity: str, key: str, threshold: float, lookback period: str, percent:float, dead_detector_seconds: int
+    # inReal type: datetime.datetime and value (should be sorted)
+    #
+    def more_than_expected(
+        inReal, optInTimePeriodString, threshold, fraction, dead_detector_seconds
+    ):
+        optInTimeBegin = dateparser.parse(optInTimePeriodString)
+        optInTimeEnd = datetime.datetime.now()
 
-        outReal = [0.0] * len(inReal)
+        more_than_acc = []
+        less_than_acc = []
+        for date, value in inReal:
+            if date < optInTimeBegin:
+                continue
+            # if date > optInTimeEnd:
+            #     continue
+            if value >= threshold:
+                more_than_acc.append(value)
+            less_than_acc.append(value)
 
-        highest, tmp = 0.0, 0.0
-        outIdx, nbInitialElementNeeded = 0, 0
-        trailingIdx, today, i, highestIdx = 0, 0, 0, 0
+        # dead detector
+        if value + datetime.timedelta(seconds=dead_detector_seconds) <= optInTimeEnd:
+            return (
+                True,
+                "Dead Detector: Last value was %s beyond the dead detector of %d seconds."
+                % (value, dead_detector_seconds),
+            )
 
-        # identify the minimum number of slots needed
-        # to identify at least one output over the specified
-        # period.
-        nbInitialElementNeeded = _lookback(optInTimePeriod)
+        total_samples = len(more_than_acc) + len(less_than_acc)
+        if (len(more_than_acc) / total_samples) >= fraction:
+            return (
+                True,
+                "Threshold Detector: %d of the last %d samples (%d fraction) were greater than threshold of %f."
+                % (len(more_than_acc), total_samples, fraction, threshold),
+            )  # alert
+        return False, ""  # no alert
 
-        # move up the start index if there is not
-        # enough initial data.
-        if startIdx < nbInitialElementNeeded:
-            startIdx = nbInitialElementNeeded
-
-        # make sure there is still something to evaluate
-        if startIdx > endIdx:
-            outBegIdx = 0
-            outNBElement = 0
-            return outBegIdx, outNBElement, outReal
-
-        # proceed with the calculation for the requested range.
-        # note that this algorithm allows the input and
-        # output to be the same buffer.
-        outIdx = 0
-        today = startIdx
-        trailingIdx = startIdx - nbInitialElementNeeded
-        highestIdx = -1
-        highest = 0.0
-
-        while today <= endIdx:
-            tmp = inReal[today]
-            if highestIdx < trailingIdx:
-                highestIdx = trailingIdx
-                highest = inReal[highestIdx]
-                i = highestIdx
-                i += 1
-                while i <= today:
-                    tmp = inReal[i]
-                    if tmp > highest:
-                        highestIdx = i
-                        highest = tmp
-                    i += 1
-            elif tmp >= highest:
-                highestIdx = today
-                highest = tmp
-
-            outReal[outIdx] = highest
-            outIdx += 1
-            trailingIdx += 1
-            today += 1
-
-        # keep the outBegIdx relative to the
-        # caller input before returning.
-        outBegIdx = startIdx
-        outNBElement = outIdx
-
-        return outBegIdx, outNBElement, outReal
+    # entity = "DESKTOP-1VTP7JS", key = "mock_utilization"
+    more_than_expected(
+        inReal=[],
+        optInTimePeriodString="5m",
+        threshold=0.75,
+        fraction=0.75,
+        dead_detector_seconds=60 * 60 * 2,  # 2 hours
+    )
 
 
 def main(argv):
