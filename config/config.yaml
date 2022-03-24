@@ -1,0 +1,9 @@
+---
+- name: "Device utilization too high"
+  function: more_than_expected
+  entity: DESKTOP-1VTP7JS
+  key: mock_utilization
+  optInTimePeriodString: 5m
+  threshold: 0.80
+  fraction: 0.80
+  dead_detector_seconds: 7200

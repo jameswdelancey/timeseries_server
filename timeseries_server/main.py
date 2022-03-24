@@ -8,8 +8,10 @@ import time
 
 import bottle
 import dateparser
+import yaml
 
 logging.basicConfig(level="DEBUG")
+
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 CONFIG_DIR = os.environ.get("TIMESERIES_SERVER_CONFIG_DIR", SCRIPT_DIR + "/config")
@@ -152,56 +154,104 @@ def run_ui_server():
 
 
 def run_detectors():
+    with open(CONFIG_DIR + "/config.yaml") as stream:
+        try:
+            parsed_yaml = yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            logging.exception(
+                "error in run_detectors while parsing yaml config with error %s", exc
+            )
+            raise
     # periodically action dead timers by looking in time series for an event key pair that haven't arrived in detector dead interval
 
     # detector needs a lookback time, a threshold for lower than or more than, and a percent of datapoints, and a dead detector time
-    rows = db.execute("select * from timeseries_log").fetchall()
+    # rows = db.execute("select * from timeseries_log limit 100").fetchall()
 
     # configuration example: entity: str, key: str, threshold: float, lookback period: str, percent:float, dead_detector_seconds: int
     # inReal type: datetime.datetime and value (should be sorted)
     #
-    def more_than_expected(
+    def _more_than_expected(
         inReal, optInTimePeriodString, threshold, fraction, dead_detector_seconds
     ):
         optInTimeBegin = dateparser.parse(optInTimePeriodString)
+        logging.debug("optInTimeBegin is %s", optInTimeBegin)
         optInTimeEnd = datetime.datetime.now()
 
         more_than_acc = []
         less_than_acc = []
         for date, value in inReal:
-            if date < optInTimeBegin:
+            if datetime.datetime.fromtimestamp(date) < optInTimeBegin:
                 continue
             # if date > optInTimeEnd:
             #     continue
             if value >= threshold:
                 more_than_acc.append(value)
-            less_than_acc.append(value)
+            else:
+                less_than_acc.append(value)
 
         # dead detector
-        if value + datetime.timedelta(seconds=dead_detector_seconds) <= optInTimeEnd:
+        if (
+            datetime.datetime.fromtimestamp(inReal[0][0])
+            + datetime.timedelta(seconds=dead_detector_seconds)
+            <= optInTimeEnd
+        ):
             return (
                 True,
-                "Dead Detector: Last value was %s beyond the dead detector of %d seconds."
-                % (value, dead_detector_seconds),
+                "Dead Detector: Last timestamp was %s beyond the dead detector of %d seconds. Actual seconds %d."
+                % (
+                    datetime.datetime.fromtimestamp(inReal[0][0]),
+                    dead_detector_seconds,
+                    optInTimeEnd.timestamp() - inReal[0][0],
+                ),
             )
 
         total_samples = len(more_than_acc) + len(less_than_acc)
         if (len(more_than_acc) / total_samples) >= fraction:
             return (
                 True,
-                "Threshold Detector: %d of the last %d samples (%d fraction) were greater than threshold of %f."
+                "Threshold Detector: %d of the last %d samples against threshold fraction %f were greater than threshold of %f."
                 % (len(more_than_acc), total_samples, fraction, threshold),
-            )  # alert
-        return False, ""  # no alert
+            )
 
-    # entity = "DESKTOP-1VTP7JS", key = "mock_utilization"
-    more_than_expected(
-        inReal=[],
-        optInTimePeriodString="5m",
-        threshold=0.75,
-        fraction=0.75,
-        dead_detector_seconds=60 * 60 * 2,  # 2 hours
+        return (
+            False,
+            "NO THRESHOLD MET: Detector would read: Threshold Detector: %d of the last %d samples against threshold fraction %f were greater than threshold of %f."
+            % (len(more_than_acc), total_samples, fraction, threshold),
+        )
+
+    more_than_expected = lambda entity, key, optInTimePeriodString, threshold, fraction, dead_detector_seconds: _more_than_expected(
+        inReal=db.execute(
+            "select time, value from timeseries_log where entity=? and key=? order by id desc limit 100",
+            (entity, key),
+        ).fetchall(),
+        optInTimePeriodString=optInTimePeriodString,
+        threshold=threshold,
+        fraction=fraction,
+        dead_detector_seconds=dead_detector_seconds,
     )
+
+    detector_map = {"more_than_expected": more_than_expected}
+
+    events = []
+
+    for detector in parsed_yaml:
+        is_alert, desc = detector_map[detector["function"]](
+            entity=detector["entity"],
+            key=detector["key"],
+            optInTimePeriodString=detector["optInTimePeriodString"],
+            threshold=detector["threshold"],
+            fraction=detector["fraction"],
+            dead_detector_seconds=detector["dead_detector_seconds"],
+        )
+        alarmUniqueId = "%s!!!%s!!!%s" % (
+            detector["name"],
+            detector["entity"],
+            detector["key"],
+        )
+        events.append([alarmUniqueId, desc])
+        logging.debug(
+            "detector with uniqueId %s result: %s, %s", alarmUniqueId, is_alert, desc
+        )
 
 
 def main(argv):
