@@ -59,7 +59,7 @@ def run_collection_server():
             logging.exception("error in /timeseries with error %s", repr(e))
             raise
 
-    bottle.run(host="0.0.0.0", port=COLLECTION_SERVER_PORT)
+    bottle.run(host="0.0.0.0", port=COLLECTION_SERVER_PORT, server="paste")
 
 
 def run_ui_server():
@@ -150,7 +150,7 @@ def run_ui_server():
 """
         )
 
-    bottle.run(host="0.0.0.0", port=COLLECTION_SERVER_UI_PORT)
+    bottle.run(host="0.0.0.0", port=COLLECTION_SERVER_UI_PORT, server="paste")
 
 
 def run_detectors():

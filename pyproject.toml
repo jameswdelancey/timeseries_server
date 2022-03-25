@@ -10,6 +10,7 @@ python = ">=3.6.2,<4.0"
 bottle = "^0.12.19"
 dateparser = "^1.1.1"
 PyYAML = "^6.0"
+Paste = "^3.5.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.1.0"
