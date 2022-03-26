@@ -207,7 +207,7 @@ def run_detectors():
             )
 
         total_samples = len(more_than_acc) + len(less_than_acc)
-        if (len(more_than_acc) / total_samples) >= fraction:
+        if total_samples and (len(more_than_acc) / total_samples) >= fraction:
             return (
                 True,
                 "Threshold Detector: %d of the last %d samples against threshold fraction %f were greater than threshold of %f."
