@@ -7,4 +7,3 @@
   threshold: 0.80
   fraction: 0.80
   dead_detector_seconds: 7200
-
