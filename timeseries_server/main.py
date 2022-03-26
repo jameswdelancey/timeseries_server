@@ -191,6 +191,7 @@ def run_detectors():
 
         # dead detector
         if (
+            inReal and inReal[0] and
             datetime.datetime.fromtimestamp(inReal[0][0])
             + datetime.timedelta(seconds=dead_detector_seconds)
             <= optInTimeEnd
