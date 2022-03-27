@@ -33,13 +33,14 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
         while message and not thread_stop:
             try:
                 _time = int(time.time())
-                key = json.dumps(dict(message.__dict__))
+                key = json.dumps(message.__dict__)
                 value = 0
                 row = (_time, entity, key, value)
                 with internal_lock:
                     internal_queue.append(row)
             except Exception as e:
                 print("exc in pack_sample with error %s" % repr(e), file=sys.stderr)
+            message = log_queue.get()
 
     def send_clock():
         nonlocal internal_queue
