@@ -31,6 +31,7 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
         message = log_queue.get()
         entity = socket.gethostname()
         while message and not thread_stop:
+            print("message", str(message.__dict__), file=sys.stderr)
             try:
                 _time = int(time.time())
                 key = json.dumps(message.__dict__)
