@@ -78,6 +78,7 @@ def send_timeseries(times, entities, keys, values):
         req = urllib.request.Request(url, data.encode())
         with urllib.request.urlopen(req) as response:
             the_page = response.read()
+            print("the_page", the_page, file=sys.stderr)
             assert json.loads(the_page) == {"status": "ok"}, "error sending the payload"
         print("timeseries submitted successfully", file=sys.stderr)
     except Exception as e:
