@@ -199,7 +199,8 @@ def run_detectors():
             logging.exception("error sending mail with error %s", repr(e))
 
         server.quit()
-    _send_notification_by_email()
+
+    # _send_notification_by_email()
     # periodically action dead timers by looking in time series for an event key pair that haven't arrived in detector dead interval
 
     # detector needs a lookback time, a threshold for lower than or more than, and a percent of datapoints, and a dead detector time
@@ -270,7 +271,72 @@ def run_detectors():
         dead_detector_seconds=dead_detector_seconds,
     )
 
-    detector_map = {"more_than_expected": more_than_expected}
+    def _less_than_expected(
+        inReal, optInTimePeriodString, threshold, fraction, dead_detector_seconds
+    ):
+        optInTimeBegin = dateparser.parse(optInTimePeriodString)
+        logging.debug("optInTimeBegin is %s", optInTimeBegin)
+        optInTimeEnd = datetime.datetime.now()
+
+        more_than_acc = []
+        less_than_acc = []
+        for date, value in inReal:
+            if datetime.datetime.fromtimestamp(date) < optInTimeBegin:
+                continue
+            # if date > optInTimeEnd:
+            #     continue
+            if value < threshold:
+                more_than_acc.append(value)
+            else:
+                less_than_acc.append(value)
+
+        # dead detector
+        if (
+            inReal
+            and inReal[0]
+            and datetime.datetime.fromtimestamp(inReal[0][0])
+            + datetime.timedelta(seconds=dead_detector_seconds)
+            <= optInTimeEnd
+        ):
+            return (
+                True,
+                "Dead Detector: Last timestamp was %s beyond the dead detector of %d seconds. Actual seconds %d."
+                % (
+                    datetime.datetime.fromtimestamp(inReal[0][0]),
+                    dead_detector_seconds,
+                    optInTimeEnd.timestamp() - inReal[0][0],
+                ),
+            )
+
+        total_samples = len(more_than_acc) + len(less_than_acc)
+        if total_samples and (len(less_than_acc) / total_samples) >= fraction:
+            return (
+                True,
+                "Threshold Detector: %d of the last %d samples against threshold fraction %f were less than threshold of %f."
+                % (len(less_than_acc), total_samples, fraction, threshold),
+            )
+
+        return (
+            False,
+            "NO THRESHOLD MET: Detector would read: Threshold Detector: %d of the last %d samples against threshold fraction %f were less than threshold of %f."
+            % (len(more_than_acc), total_samples, fraction, threshold),
+        )
+
+    less_than_expected = lambda entity, key, optInTimePeriodString, threshold, fraction, dead_detector_seconds: _less_than_expected(
+        inReal=db.execute(
+            "select time, value from timeseries_log where entity=? and key=? order by id desc limit 100",
+            (entity, key),
+        ).fetchall(),
+        optInTimePeriodString=optInTimePeriodString,
+        threshold=threshold,
+        fraction=fraction,
+        dead_detector_seconds=dead_detector_seconds,
+    )
+
+    detector_map = {
+        "more_than_expected": more_than_expected,
+        "less_than_expected": less_than_expected,
+    }
 
     events = []
 

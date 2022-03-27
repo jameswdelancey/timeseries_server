@@ -8,3 +8,12 @@
   fraction: 0.80
   dead_detector_seconds: 7200
 
+- name: "Device utilization too low"
+  function: less_than_expected
+  entity: DESKTOP-1VTP7JS
+  key: mock_utilization
+  optInTimePeriodString: 5m
+  threshold: 0.20
+  fraction: 0.80
+  dead_detector_seconds: 7200
+
