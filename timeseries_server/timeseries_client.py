@@ -31,7 +31,7 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
         message = log_queue.get()
         entity = socket.gethostname()
         while message and not thread_stop:
-            print("message", str(message.__dict__), file=sys.stderr)
+            # print("message", str(message.__dict__), file=sys.stderr)
             try:
                 _time = int(time.time())
                 key = json.dumps(message.__dict__)
@@ -45,7 +45,7 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
 
     def send_clock():
         nonlocal internal_queue
-        while not thread_stop:
+        while not thread_stop and not internal_queue:
             with internal_lock:
                 try:
                  # print("internal_queue", *list(zip(*internal_queue)), file=sys.stderr)
