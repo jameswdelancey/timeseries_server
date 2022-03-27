@@ -32,7 +32,7 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
         while message and not thread_stop:
             try:
                 _time = int(time.time())
-                key = json.dumps(dict(message))
+                key = json.dumps(dict(message.__dict__))
                 value = 0
                 row = (_time, entity, key, value)
                 with internal_lock:
