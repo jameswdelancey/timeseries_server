@@ -46,7 +46,7 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
         while not thread_stop:
             with internal_lock:
                 try:
-                 send_timeseries(*list(zip(*internal_queue)))
+                 send_timeseries(*[x for x in zip(*internal_queue) if len(x) == 4])
                 except Exception as e:
                     print("error in send_clock with error %s"%repr(e), file=sys.stderr)
                 internal_queue = []
