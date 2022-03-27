@@ -48,7 +48,7 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
         while internal_queue or not thread_stop:
             with internal_lock:
                 try:
-                 print("internal_queue", file=sys.stderr)
+                 # print("internal_queue", file=sys.stderr)
                  if internal_queue:
                   send_timeseries(*list(zip(*internal_queue)))
                 except Exception as e:
@@ -66,7 +66,7 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
 
 def send_timeseries(times, entities, keys, values):
     try:
-        print("received %d timeseries" % len(times), file=sys.stderr)
+        # print("received %d timeseries" % len(times), file=sys.stderr)
         timeseries = [
             {
                 "time": a,
@@ -80,9 +80,9 @@ def send_timeseries(times, entities, keys, values):
         req = urllib.request.Request(url, data.encode())
         with urllib.request.urlopen(req) as response:
             the_page = response.read()
-            print("the_page", the_page, file=sys.stderr)
+            # print("the_page", the_page, file=sys.stderr)
             assert json.loads(the_page) == {"status": "ok"}, "error sending the payload"
-        print("timeseries submitted successfully", file=sys.stderr)
+        # print("timeseries submitted successfully", file=sys.stderr)
     except Exception as e:
         print("error in send_timeseries with error %s" % repr(e), file=sys.stderr)
         raise
