@@ -179,6 +179,7 @@ def run_detectors():
     def _send_notification_by_email():
         detector_email_body = "tst body"
         server = smtplib.SMTP(DETECTOR_EMAIL_SMTP, 587)
+        server.connect()
         server.ehlo()
         server.starttls()
         server.login(DETECTOR_EMAIL_USERNAME, DETECTOR_EMAIL_PASSWORD)
