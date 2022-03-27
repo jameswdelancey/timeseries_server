@@ -5,6 +5,7 @@ import os
 import sqlite3
 import sys
 import time
+import smtplib
 
 import bottle
 import dateparser
@@ -21,6 +22,14 @@ COLLECTION_SERVER_SYMMETRICAL_KEY = os.environ.get(
 )
 COLLECTION_SERVER_PORT = int(os.environ.get("COLLECTION_SERVER_PORT", 8080))
 COLLECTION_SERVER_UI_PORT = int(os.environ.get("COLLECTION_SERVER_UI_PORT", 8081))
+
+DETECTOR_EMAIL_TO = os.environ.get("DETECTOR_EMAIL_TO", "")
+DETECTOR_EMAIL_FROM = os.environ.get("DETECTOR_EMAIL_FROM", "")
+DETECTOR_EMAIL_SUBJECT = "TEST MAIL"
+DETECTOR_EMAIL_SMTP = os.environ.get("DETECTOR_EMAIL_SMTP", "")
+DETECTOR_EMAIL_USERNAME = os.environ.get("DETECTOR_EMAIL_USERNAME", "")
+DETECTOR_EMAIL_PASSWORD = os.environ.get("DETECTOR_EMAIL_PASSWORD", "")
+
 
 DATABASE_SCHEMA = [
     "CREATE TABLE IF NOT EXISTS timeseries_log (id INTEGER PRIMARY KEY, created_at, time, entity, key, value REAL)",  # value is the numerical thing tested
@@ -166,6 +175,32 @@ def run_detectors():
                 "error in run_detectors while parsing yaml config with error %s", exc
             )
             raise
+    # send notification by email
+    def _send_notification_by_email():
+        detector_email_body = "tst body"
+        server = smtplib.SMTP(DETECTOR_EMAIL_SMTP, 587)
+        server.ehlo()
+        server.starttls()
+        server.login(DETECTOR_EMAIL_USERNAME, DETECTOR_EMAIL_PASSWORD)
+
+        BODY = "\r\n".join(
+            [
+                "To: %s" % DETECTOR_EMAIL_TO,
+                "From: %s" % DETECTOR_EMAIL_FROM,
+                "Subject: %s" % DETECTOR_EMAIL_SUBJECT,
+                "",
+                detector_email_body,
+            ]
+        )
+
+        try:
+            server.sendmail(DETECTOR_EMAIL_FROM, [DETECTOR_EMAIL_TO], BODY)
+            logging.debug("email sent")
+        except Exception as e:
+            logging.exception("error sending mail with error %s", repr(e))
+
+        server.quit()
+    _send_notification_by_email()
     # periodically action dead timers by looking in time series for an event key pair that haven't arrived in detector dead interval
 
     # detector needs a lookback time, a threshold for lower than or more than, and a percent of datapoints, and a dead detector time
@@ -195,8 +230,9 @@ def run_detectors():
 
         # dead detector
         if (
-            inReal and inReal[0] and
-            datetime.datetime.fromtimestamp(inReal[0][0])
+            inReal
+            and inReal[0]
+            and datetime.datetime.fromtimestamp(inReal[0][0])
             + datetime.timedelta(seconds=dead_detector_seconds)
             <= optInTimeEnd
         ):
