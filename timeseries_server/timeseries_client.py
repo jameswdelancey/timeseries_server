@@ -45,7 +45,10 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
         nonlocal internal_queue
         while not thread_stop:
             with internal_lock:
-                send_timeseries(*list(zip(*internal_queue)))
+                try:
+                 send_timeseries(*list(zip(*internal_queue)))
+                except Exception as e:
+                    print("error in send_clock with error %s"%repr(e), file=sys.stderr)
                 internal_queue = []
                 time.sleep(5)
 
