@@ -45,7 +45,7 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
 
     def send_clock():
         nonlocal internal_queue
-        while internal_queue or thread_stop:
+        while internal_queue or not thread_stop:
             with internal_lock:
                 try:
                  print("internal_queue", file=sys.stderr)
