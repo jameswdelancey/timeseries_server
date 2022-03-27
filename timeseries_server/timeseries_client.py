@@ -9,7 +9,7 @@ import time
 import socket
 import threading
 
-logging.basicConfig(level="DEBUG")
+# logging.basicConfig(level="DEBUG")
 
 COLLECTION_SERVER_PROTOCOL = os.environ.get("COLLECTION_SERVER_PROTOCOL", "http")
 COLLECTION_SERVER_ADDRESS = os.environ.get("COLLECTION_SERVER_ADDRESS", "localhost")
