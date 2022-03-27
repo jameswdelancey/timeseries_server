@@ -85,4 +85,4 @@ def send_timeseries(times, entities, keys, values):
         # print("timeseries submitted successfully", file=sys.stderr)
     except Exception as e:
         print("error in send_timeseries with error %s" % repr(e), file=sys.stderr)
-        raise
+        # raise
