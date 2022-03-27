@@ -1,8 +1,13 @@
 import json
 import logging
 import os
+import sys
 import urllib.parse
 import urllib.request
+import logging.handlers
+import time
+import socket
+import threading
 
 logging.basicConfig(level="DEBUG")
 
@@ -16,9 +21,44 @@ url = "%s://%s:%d/timeseries" % (
 )
 
 
+
+def log_to_timeseries_server(threads, thread_stop, log_queue):
+    internal_queue = []
+    internal_lock = threading.Lock()
+
+    def pack_sample():
+        message = log_queue.get()
+        entity = socket.gethostname()
+        while message and not thread_stop:
+            try:
+                _time = int(time.time())
+                key = json.dumps(dict(message))
+                value = 0
+                row = (_time, entity, key, value)
+                with internal_lock:
+                    internal_queue.append(row)
+            except Exception as e:
+                print("exc in pack_sample with error %s" % repr(e), file=sys.stderr)
+
+    def send_clock():
+        nonlocal internal_queue
+        while not thread_stop:
+            with internal_lock:
+                send_timeseries(*list(zip(*internal_queue)))
+                internal_queue = []
+                time.sleep(5)
+
+    t = threading.Thread(target=pack_sample)
+    threads.append(t)
+    t.start()
+    t = threading.Thread(target=send_clock)
+    threads.append(t)
+    t.start()
+
+
 def send_timeseries(times, entities, keys, values):
     try:
-        logging.debug("received %d timeseries", len(times))
+        print("received %d timeseries" % len(times), file=sys.stderr)
         timeseries = [
             {
                 "time": a,
@@ -33,7 +73,7 @@ def send_timeseries(times, entities, keys, values):
         with urllib.request.urlopen(req) as response:
             the_page = response.read()
             assert json.loads(the_page) == {"status": "ok"}, "error sending the payload"
-        logging.info("timeseries submitted successfully")
+        print("timeseries submitted successfully", file=sys.stderr)
     except Exception as e:
-        logging.exception("error in send_timeseries with error %s", repr(e))
+        print("error in send_timeseries with error %s" % repr(e), file=sys.stderr)
         raise
