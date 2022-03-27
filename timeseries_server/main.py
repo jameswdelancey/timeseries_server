@@ -38,6 +38,7 @@ def run_collection_server():
     @bottle.post("/timeseries")
     def timeseries():
         try:
+            db = sqlite3.connect(DATA_DIR + "/db.sqlite3")
             logging.debug("input data: %s", bottle.request.body.read())
             json_data = bottle.request.forms.get("data")
             data = json.loads(json_data)
@@ -77,6 +78,7 @@ def run_ui_server():
 
     @bottle.get("/timeseries_log")
     def timeseries_log():
+        db = sqlite3.connect(DATA_DIR + "/db.sqlite3")
         rows = db.execute("select * from timeseries_log").fetchall()
         cols = rows[0] if rows else []
         return (
@@ -102,6 +104,7 @@ def run_ui_server():
 
     @bottle.get("/events_log")
     def events_log():
+        db = sqlite3.connect(DATA_DIR + "/db.sqlite3")
         rows = db.execute("select * from events_log").fetchall()
         cols = rows[0] if rows else []
         return (
@@ -127,6 +130,7 @@ def run_ui_server():
 
     @bottle.get("/recent_alerts")
     def recent_alerts():
+        db = sqlite3.connect(DATA_DIR + "/db.sqlite3")
         rows = db.execute("select * from recent_alerts").fetchall()
         cols = rows[0] if rows else []
         return (
