@@ -399,12 +399,13 @@ def run_detectors():
             (closed_alert[1],),
         )
     db.commit()
-    db.execute(
-        "delete from recent_alerts where%s"
-        % "AND".join(" detector_name=? " for e in closed_alerts),
-        tuple(e[0] for e in closed_alerts),
-    )
-    db.commit()
+    if closed_alerts:
+        db.execute(
+            "delete from recent_alerts where%s"
+            % "AND".join(" detector_name=? " for e in closed_alerts),
+            tuple(e[0] for e in closed_alerts),
+        )
+        db.commit()
 
 
 def main(argv):
