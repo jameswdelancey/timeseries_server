@@ -26,7 +26,6 @@ COLLECTION_SERVER_UI_PORT = int(os.environ.get("COLLECTION_SERVER_UI_PORT", 8081
 
 DETECTOR_EMAIL_TO = os.environ.get("DETECTOR_EMAIL_TO", "")
 DETECTOR_EMAIL_FROM = os.environ.get("DETECTOR_EMAIL_FROM", "")
-DETECTOR_EMAIL_SUBJECT = "TEST MAIL"
 DETECTOR_EMAIL_SMTP = os.environ.get("DETECTOR_EMAIL_SMTP", "")
 DETECTOR_EMAIL_USERNAME = os.environ.get("DETECTOR_EMAIL_USERNAME", "")
 DETECTOR_EMAIL_PASSWORD = os.environ.get("DETECTOR_EMAIL_PASSWORD", "")
@@ -179,8 +178,12 @@ def run_detectors():
             )
             raise
     # send notification by email
-    def _send_notification_by_email():
-        detector_email_body = "tst body"
+    def _send_notification_by_email(event):
+        detector_email_body = """\
+Detector: %s
+Desc: %s            
+"""%(event[0], event[1])
+        subject = "Alert: %s"%event[0]
         server = smtplib.SMTP_SSL(DETECTOR_EMAIL_SMTP, 465)
         server.ehlo()
         server.login(DETECTOR_EMAIL_USERNAME, DETECTOR_EMAIL_PASSWORD)
@@ -189,7 +192,7 @@ def run_detectors():
             [
                 "To: %s" % DETECTOR_EMAIL_TO,
                 "From: %s" % DETECTOR_EMAIL_FROM,
-                "Subject: %s" % DETECTOR_EMAIL_SUBJECT,
+                "Subject: %s" % subject,
                 "",
                 detector_email_body,
             ]
@@ -385,6 +388,7 @@ def run_detectors():
                 % (created_at, created_at, created_at),
                 tuple(event),
             )
+            _send_notification_by_email(event)
     db.commit()
     # get those that are closed now
     closed_alerts = db.execute(
