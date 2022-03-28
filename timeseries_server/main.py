@@ -34,7 +34,7 @@ DETECTOR_EMAIL_PASSWORD = os.environ.get("DETECTOR_EMAIL_PASSWORD", "")
 DATABASE_SCHEMA = [
     "CREATE TABLE IF NOT EXISTS timeseries_log (id INTEGER PRIMARY KEY, created_at, time, entity, key, value REAL)",  # value is the numerical thing tested
     "CREATE TABLE IF NOT EXISTS events_log (id INTEGER PRIMARY KEY, created_at, time, detector_name, value INTEGER, desc)",  # value is on or off
-    "CREATE TABLE IF NOT EXISTS recent_alerts (id, created_at, updated_at, time, detector_name, value INTEGER, desc)",  # value is active or not
+    "CREATE TABLE IF NOT EXISTS recent_alerts (id INTEGER PRIMARY KEY, created_at, updated_at, time, detector_name, value INTEGER, desc)",  # value is active or not
 ]
 
 
