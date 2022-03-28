@@ -364,11 +364,12 @@ def run_detectors():
     created_at = datetime.datetime.now().isoformat()
     alarm_ids = [x[0] for x in events]
     descriptions = [x[1] for x in events]
-    db.execute(
+    db.executemany(
         "insert into events_log (created_at, time, detector_name, value, desc) values ('%s','%s',?,1,?)"
         % (created_at, created_at),
         (alarm_ids, descriptions),
     )
+    db.commit()
 
 
 def main(argv):
