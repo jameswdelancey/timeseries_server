@@ -367,7 +367,7 @@ def run_detectors():
     db.executemany(
         "insert into events_log (created_at, time, detector_name, value, desc) values ('%s','%s',?,1,?)"
         % (created_at, created_at),
-        (alarm_ids, descriptions),
+        events[:2],
     )
     db.commit()
 
