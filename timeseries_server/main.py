@@ -33,8 +33,8 @@ DETECTOR_EMAIL_PASSWORD = os.environ.get("DETECTOR_EMAIL_PASSWORD", "")
 
 DATABASE_SCHEMA = [
     "CREATE TABLE IF NOT EXISTS timeseries_log (id INTEGER PRIMARY KEY, created_at, time, entity, key, value REAL)",  # value is the numerical thing tested
-    "CREATE TABLE IF NOT EXISTS events_log (id INTEGER PRIMARY KEY, created_at, time, detector_name, value INTEGER)",  # value is on or off
-    "CREATE TABLE IF NOT EXISTS recent_alerts (id, created_at, updated_at, time, value INTEGER)",  # value is active or not
+    "CREATE TABLE IF NOT EXISTS events_log (id INTEGER PRIMARY KEY, created_at, time, detector_name, value INTEGER, desc)",  # value is on or off
+    "CREATE TABLE IF NOT EXISTS recent_alerts (id, created_at, updated_at, time, value INTEGER, desc)",  # value is active or not
 ]
 
 
@@ -51,14 +51,16 @@ def run_collection_server():
             logging.debug("input data: %s", bottle.request.body.read())
             json_data = bottle.request.forms.get("data")
             data = json.loads(json_data)
-            _times = [int(x["time"]) for x in data]
+            _times = [
+                datetime.datetime.fromtimestamp(x["time"]).isoformat() for x in data
+            ]
             _entities = [str(x["entity"]) for x in data]
             _keys = [str(x["key"]) for x in data]
             _values = [float(x["value"]) for x in data]
             logging.info("timeseries input of length %d", len(data))
-            created_at = int(time.time())
+            created_at = datetime.datetime.now().isoformat()
             db.executemany(
-                "insert into timeseries_log (created_at, time, entity, key, value) values (%d, ?,?,?,?)"
+                "insert into timeseries_log (created_at, time, entity, key, value) values ('%s', ?,?,?,?)"
                 % created_at,
                 zip(_times, _entities, _keys, _values),
             )
@@ -358,6 +360,15 @@ def run_detectors():
         logging.debug(
             "detector with uniqueId %s result: %s, %s", alarmUniqueId, is_alert, desc
         )
+    # add all events regardless of whether they have been added before
+    created_at = datetime.datetime.now().isoformat()
+    alarm_ids = [x[0] for x in events]
+    descriptions = [x[1] for x in events]
+    db.execute(
+        "insert into events_log (created_at, time, detector_name, value, desc) values ('%s','%s',?,1,?)"
+        % (created_at, created_at),
+        (alarm_ids, descriptions),
+    )
 
 
 def main(argv):
