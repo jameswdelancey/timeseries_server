@@ -6,6 +6,7 @@ import sqlite3
 import sys
 import time
 import smtplib
+from venv import create
 
 import bottle
 import dateparser
@@ -34,7 +35,7 @@ DETECTOR_EMAIL_PASSWORD = os.environ.get("DETECTOR_EMAIL_PASSWORD", "")
 DATABASE_SCHEMA = [
     "CREATE TABLE IF NOT EXISTS timeseries_log (id INTEGER PRIMARY KEY, created_at, time, entity, key, value REAL)",  # value is the numerical thing tested
     "CREATE TABLE IF NOT EXISTS events_log (id INTEGER PRIMARY KEY, created_at, time, detector_name, value INTEGER, desc)",  # value is on or off
-    "CREATE TABLE IF NOT EXISTS recent_alerts (id, created_at, updated_at, time, value INTEGER, desc)",  # value is active or not
+    "CREATE TABLE IF NOT EXISTS recent_alerts (id, created_at, updated_at, time, detector_name, value INTEGER, desc)",  # value is active or not
 ]
 
 
@@ -360,14 +361,48 @@ def run_detectors():
         logging.debug(
             "detector with uniqueId %s result: %s, %s", alarmUniqueId, is_alert, desc
         )
-    # add all events regardless of whether they have been added before
+    # add all events regardless of whether they have been added before # i think this should be a log
     created_at = datetime.datetime.now().isoformat()
-    alarm_ids = [x[0] for x in events]
-    descriptions = [x[1] for x in events]
     db.executemany(
         "insert into events_log (created_at, time, detector_name, value, desc) values ('%s','%s',?,1,?)"
         % (created_at, created_at),
         events[:2],
+    )
+    db.commit()
+    # process alerts to see current status
+    alert_exists = []
+    for event in events:
+        alert_id, desc = event
+        res = db.execute(
+            "select id from recent_alerts where detector_name=? limit 1", (alert_id,)
+        ).fetchall()
+        alert_exists.append(True if res else False)
+    # insert those that dont exist
+    for event, exist in zip(events, alert_exists):
+        if not exist:
+            db.execute(
+                "insert into recent_alerts (created_at, updated_at, time, detector_name, desc) values ('%s','%s','%s',?,?)"
+                % (created_at, created_at, created_at),
+                tuple(event),
+            )
+    db.commit()
+    # get those that are closed now
+    closed_alerts = db.execute(
+        "select id, detector_name from recent_alerts where%s"
+        % "AND".join(" detector_name!=? " for e in events),
+        tuple(x[0] for x in events),
+    ).fetchall()
+    for closed_alert in closed_alerts:
+        db.execute(
+            "insert into events_log (created_at, time, detector_name, value INTEGER) values ('%s','%s',?,0)"
+            % (created_at, created_at),
+            (closed_alert[1],),
+        )
+    db.commit()
+    db.execute(
+        "delete from recent_alerts where%s"
+        % "AND".join(" detector_name=? " for e in closed_alerts),
+        tuple(e[0] for e in closed_alerts),
     )
     db.commit()
 
