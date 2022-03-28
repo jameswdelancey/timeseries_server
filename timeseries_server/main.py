@@ -182,8 +182,11 @@ def run_detectors():
         detector_email_body = """\
 Detector: %s
 Desc: %s            
-"""%(event[0], event[1])
-        subject = "Alert: %s"%event[0]
+""" % (
+            event[0],
+            event[1],
+        )
+        subject = "Alert: %s" % event[0]
         server = smtplib.SMTP_SSL(DETECTOR_EMAIL_SMTP, 465)
         server.ehlo()
         server.login(DETECTOR_EMAIL_USERNAME, DETECTOR_EMAIL_PASSWORD)
@@ -428,8 +431,10 @@ def main(argv):
                 run_ui_server()
                 return
             elif command == "run_detectors":
-                run_detectors()
-                return
+                while True:
+                    run_detectors()
+                    time.sleep(15 * 60)
+                # return
             else:
                 help()
                 return
