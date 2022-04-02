@@ -43,6 +43,7 @@ db = sqlite3.connect(DATA_DIR + "/db.sqlite3")
 
 
 def run_collection_server():
+    bottle.BaseRequest.MEMFILE_MAX = bottle.BaseRequest.MEMFILE_MAX * 100
     # accept data to one path with a hmac header accepting a json array of objects with time (optional), entity, key, value
     @bottle.post("/timeseries")
     def timeseries():
