@@ -21,7 +21,6 @@ url = "%s://%s:%d/timeseries" % (
 )
 
 
-
 def log_to_timeseries_server(threads, thread_stop, log_queue):
     internal_queue = []
     internal_lock = threading.Lock()
@@ -30,7 +29,7 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
         nonlocal internal_queue
         message = log_queue.get()
         entity = socket.gethostname()
-        while message and not thread_stop:
+        while message is not None:
             # print("message", str(message.__dict__), file=sys.stderr)
             try:
                 _time = int(time.time())
@@ -45,16 +44,26 @@ def log_to_timeseries_server(threads, thread_stop, log_queue):
 
     def send_clock():
         nonlocal internal_queue
-        while internal_queue or not thread_stop:
+        while not thread_stop:
             with internal_lock:
                 try:
-                 # print("internal_queue", file=sys.stderr)
-                 if internal_queue:
-                  send_timeseries(*list(zip(*internal_queue)))
+                    # print("internal_queue", file=sys.stderr)
+                    if internal_queue:
+                        send_timeseries(*list(zip(*internal_queue)))
                 except Exception as e:
-                    print("error in send_clock with error %s"%repr(e), file=sys.stderr)
+                    print(
+                        "error in send_clock with error %s" % repr(e), file=sys.stderr
+                    )
                 internal_queue = []
             time.sleep(5)
+        with internal_lock:
+            try:
+                # print("internal_queue", file=sys.stderr)
+                if internal_queue:
+                    send_timeseries(*list(zip(*internal_queue)))
+            except Exception as e:
+                print("error in send_clock with error %s" % repr(e), file=sys.stderr)
+            internal_queue = []
 
     t = threading.Thread(target=pack_sample)
     threads.append(t)
