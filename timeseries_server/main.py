@@ -40,6 +40,14 @@ DATABASE_SCHEMA = [
 
 db = sqlite3.connect(DATA_DIR + "/db.sqlite3")
 [db.execute(x) for x in DATABASE_SCHEMA]
+COMMANDS = [
+    # "PRAGMA cache_size=256000;",  # 0.25GB in RAM
+    "PRAGMA synchronous=OFF;",
+    "PRAGMA count_changes=OFF;",
+    "PRAGMA temp_store=MEMORY;",
+]
+for cmd in COMMANDS:
+    db.execute(cmd)
 
 
 def run_collection_server():
@@ -49,6 +57,15 @@ def run_collection_server():
     def timeseries():
         try:
             db = sqlite3.connect(DATA_DIR + "/db.sqlite3")
+            COMMANDS = [
+                # "PRAGMA cache_size=256000;",  # 0.25GB in RAM
+                "PRAGMA synchronous=OFF;",
+                "PRAGMA count_changes=OFF;",
+                "PRAGMA temp_store=MEMORY;",
+            ]
+            for cmd in COMMANDS:
+                db.execute(cmd)
+
             logging.debug("input data: %s", bottle.request.body.read())
             json_data = bottle.request.forms.get("data")
             data = json.loads(json_data)
